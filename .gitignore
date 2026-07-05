@@ -11,3 +11,7 @@ dist-ssr
 
 # Local test-only helpers (not part of the app)
 scratch/
+
+# Keep docs local — only README is published
+*.md
+!README.md
