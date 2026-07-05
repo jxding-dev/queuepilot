@@ -8,3 +8,6 @@ dist-ssr
 # Local tooling / editor config
 .claude/
 *.log
+
+# Local test-only helpers (not part of the app)
+scratch/
