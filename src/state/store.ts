@@ -10,12 +10,13 @@ import { parseCsvFile } from '../lib/csv';
 import { unresolvedTokens } from '../engine/templating';
 import { runQueue, createRunControl, makeExecuteRow, type RunHandle } from '../engine/queueRunner';
 import { PRESETS, DEFAULT_PRESET, type PresetId } from '../lib/presets';
+import { loadConfig, saveConfig, clearConfig } from '../lib/configStorage';
 
 const SAMPLE_SIZE = 5;
 const FLUSH_MS = 100;
 
-export const STEPS = ['Upload', 'Build', 'Run', 'Results'] as const;
-export type StepIndex = 0 | 1 | 2 | 3;
+export const STEPS = ['Upload', 'Build', 'Run'] as const;
+export type StepIndex = 0 | 1 | 2;
 
 const DEFAULT_CONFIG: RequestTemplate = {
   method: 'GET',
@@ -23,6 +24,9 @@ const DEFAULT_CONFIG: RequestTemplate = {
   headers: [{ key: '', value: '' }],
   bodyTemplate: '',
 };
+
+// Restore the saved request template + preset (or defaults) at store creation.
+const LOADED = loadConfig(DEFAULT_CONFIG, DEFAULT_PRESET);
 
 /** Methods that carry a request body; GET/DELETE hide the body editor. */
 export function methodHasBody(method: HttpMethod): boolean {
@@ -88,10 +92,14 @@ interface AppState {
 
   // config slice
   config: RequestTemplate;
+  saveAuthHeaders: boolean; // opt-in to persist auth-like header values
 
   // run slice
   run: RunState;
   runStartedAt: number | null; // wall-clock start, for the ETA estimate
+  runBaselineDone: number; // rows already completed at run start (kept sample successes)
+  autoPaused429: boolean; // set when a run auto-pauses after repeated 429s
+  skipSampledSuccess: boolean; // skip sample-successful rows on the full run
 
   // ui slice
   step: number;
@@ -106,7 +114,10 @@ interface AppState {
   addHeader: () => void;
   updateHeader: (index: number, patch: Partial<{ key: string; value: string }>) => void;
   removeHeader: (index: number) => void;
+  setSaveAuthHeaders: (value: boolean) => void;
+  resetConfig: () => void;
   setPreset: (preset: PresetId) => void;
+  setSkipSampledSuccess: (value: boolean) => void;
   startSample: () => void;
   startFull: () => void;
   retryFailed: () => void;
@@ -121,14 +132,19 @@ let activeHandle: RunHandle | null = null;
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 let resultBuffer: RowResult[] = [];
 let activeCount = 0; // in-flight requests, for the pausing -> paused transition
+let saveTimer: ReturnType<typeof setTimeout> | null = null; // debounced config persistence
 
 export const useStore = create<AppState>((set, get) => ({
   csv: null,
   isParsing: false,
   parseError: null,
-  config: DEFAULT_CONFIG,
-  run: INITIAL_RUN,
+  config: LOADED.config,
+  saveAuthHeaders: LOADED.saveAuthHeaders,
+  run: { ...INITIAL_RUN, preset: LOADED.preset },
   runStartedAt: null,
+  runBaselineDone: 0,
+  autoPaused429: false,
+  skipSampledSuccess: true,
   step: 0,
 
   parseFile: async (file) => {
@@ -183,10 +199,38 @@ export const useStore = create<AppState>((set, get) => ({
       config: { ...s.config, headers: s.config.headers.filter((_, i) => i !== index) },
     })),
 
+  setSaveAuthHeaders: (value) => {
+    set({ saveAuthHeaders: value });
+    // Re-persist now so toggling off strips (or on restores) the sensitive
+    // values in storage immediately, not only on the next config edit.
+    const s = get();
+    saveConfig(s.config, s.run.preset, value);
+  },
+
+  resetConfig: () => {
+    set((s) => ({
+      config: DEFAULT_CONFIG,
+      saveAuthHeaders: false,
+      run: { ...s.run, preset: DEFAULT_PRESET },
+    }));
+    // The set() above scheduled a debounced save via subscribe; cancel it and
+    // delete the stored entry so a reset actually removes persistence.
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    clearConfig();
+  },
+
   setPreset: (preset) => {
-    if (isRunActive(get().run.phase)) return; // preset is locked mid-run
+    const phase = get().run.phase;
+    // Locked mid-run, except while paused (so the user can lower the speed
+    // before resuming after a 429 auto-pause).
+    if (isRunActive(phase) && phase !== 'paused') return;
     set((s) => ({ run: { ...s.run, preset } }));
   },
+
+  setSkipSampledSuccess: (value) => set({ skipSampledSuccess: value }),
 
   startSample: () => {
     void beginRun(set, get, 'sample');
@@ -212,15 +256,33 @@ export const useStore = create<AppState>((set, get) => ({
     const phase = get().run.phase;
     if (phase !== 'paused' && phase !== 'pausing') return;
     activeHandle?.resume(); // reopens the gate; nothing is re-sent
-    set((s) => ({ run: { ...s.run, phase: 'running' } }));
+    set((s) => ({ run: { ...s.run, phase: 'running' }, autoPaused429: false }));
   },
 
   stopRun: () => {
     if (!isRunActive(get().run.phase)) return;
     activeHandle?.stop(); // aborts in-flight; runQueue resolves -> phase 'done'
-    set((s) => ({ run: { ...s.run, phase: 'stopping' } }));
+    set((s) => ({ run: { ...s.run, phase: 'stopping' }, autoPaused429: false }));
   },
 }));
+
+// Auto-save the request template + preset (debounced) whenever they change.
+// CSV data and run results are never persisted. The subscribe fires on every
+// state change (incl. per-flush run updates), so we compare config/preset refs
+// and bail out fast when neither changed.
+let prevConfig = useStore.getState().config;
+let prevPreset = useStore.getState().run.preset;
+useStore.subscribe((state) => {
+  if (state.config === prevConfig && state.run.preset === prevPreset) return;
+  prevConfig = state.config;
+  prevPreset = state.run.preset;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    const s = useStore.getState();
+    saveConfig(s.config, s.run.preset, s.saveAuthHeaders);
+  }, 300);
+});
 
 type SetFn = StoreApi<AppState>['setState'];
 type GetFn = StoreApi<AppState>['getState'];
@@ -259,12 +321,24 @@ async function beginRun(
   } else {
     const total = state.csv.rows.length;
     const count = mode === 'sample' ? Math.min(SAMPLE_SIZE, total) : total;
-    rowIndexes = Array.from({ length: count }, (_, i) => i);
-    // Seed every target row as pending so the list is stable and the pending
-    // count is exact (total minus completed).
+    const allIndexes = Array.from({ length: count }, (_, i) => i);
+
+    // On a full run, optionally keep rows that already succeeded (in the sample)
+    // instead of re-sending them. Failed/pending rows are still (re-)sent.
+    const keep =
+      mode === 'full' && state.skipSampledSuccess
+        ? new Set(
+            [...state.run.results.entries()]
+              .filter(([, r]) => r.status === 'success')
+              .map(([i]) => i),
+          )
+        : new Set<number>();
+
+    rowIndexes = allIndexes.filter((i) => !keep.has(i));
     results = new Map();
-    for (const i of rowIndexes) {
-      results.set(i, { rowIndex: i, status: 'pending', attempts: 0 });
+    for (const i of allIndexes) {
+      // Copy kept successes unchanged; seed everything else as pending.
+      results.set(i, keep.has(i) ? state.run.results.get(i)! : { rowIndex: i, status: 'pending', attempts: 0 });
     }
   }
 
@@ -273,12 +347,24 @@ async function beginRun(
   const baseAttempts = new Map<number, number>();
   for (const i of rowIndexes) baseAttempts.set(i, results.get(i)!.attempts);
 
+  // Rows already completed at start (kept sample successes / retry successes) —
+  // excluded from the ETA so it reflects only rows processed this run.
+  let baselineDone = 0;
+  for (const r of results.values()) {
+    if (r.status === 'success' || r.status === 'failed') baselineDone++;
+  }
+
   const handle = createRunControl();
   activeHandle = handle;
   resultBuffer = [];
   activeCount = 0;
 
-  set((s) => ({ run: { ...s.run, phase: 'running', mode, results }, runStartedAt: Date.now() }));
+  set((s) => ({
+    run: { ...s.run, phase: 'running', mode, results },
+    runStartedAt: Date.now(),
+    runBaselineDone: baselineDone,
+    autoPaused429: false,
+  }));
 
   const flush = () => {
     if (resultBuffer.length === 0) return;
@@ -309,11 +395,25 @@ async function beginRun(
     }
   };
 
+  // Auto-pause the run after 3 accumulated 429s (per run; a local resets it).
+  let rate429Count = 0;
+
   try {
     await runQueue(rowIndexes, execute, { concurrency, delayMs }, handle.control, (r) => {
       // Stamp the real attempt number (executor always reports 1).
       r.attempts = (baseAttempts.get(r.rowIndex) ?? 0) + 1;
       resultBuffer.push(r);
+
+      // Count 429s here (at result time, not flush time) so the pause is immediate.
+      if (r.errorKind === 'http_429') rate429Count++;
+      if (rate429Count >= 3 && get().run.phase === 'running') {
+        rate429Count = 0; // reset so resuming needs 3 more 429s before re-pausing
+        handle.pause(); // gate closes; in-flight requests finish naturally
+        set((s) => ({
+          run: { ...s.run, phase: activeCount === 0 ? 'paused' : 'pausing' },
+          autoPaused429: true,
+        }));
+      }
     });
   } finally {
     if (flushTimer) {

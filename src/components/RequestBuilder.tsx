@@ -2,7 +2,7 @@
 // tokens. Tracks the last-focused field so a VariablePicker chip inserts a token
 // at the caret. Shows a live RequestPreview and gates advancing to the Run step.
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { HttpMethod } from '../types';
 import {
   useStore,
@@ -13,6 +13,7 @@ import {
 import { copy } from '../constants/copy';
 import { VariablePicker } from './VariablePicker';
 import { RequestPreview } from './RequestPreview';
+import { ConfirmDialog } from './ConfirmDialog';
 
 const METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
@@ -33,6 +34,11 @@ export function RequestBuilder() {
   const removeHeader = useStore((s) => s.removeHeader);
   const setStep = useStore((s) => s.setStep);
   const runPhase = useStore((s) => s.run.phase);
+  const saveAuthHeaders = useStore((s) => s.saveAuthHeaders);
+  const setSaveAuthHeaders = useStore((s) => s.setSaveAuthHeaders);
+  const resetConfig = useStore((s) => s.resetConfig);
+
+  const [resetOpen, setResetOpen] = useState(false);
 
   // The field (and its store setter) most recently focused, so chip clicks know
   // where to insert. Not state — changing it must not trigger a re-render.
@@ -175,6 +181,42 @@ export function RequestBuilder() {
 
         <RequestPreview />
       </div>
+
+      <div className="persist">
+        <p className="persist__note">{copy.build.persist.note}</p>
+        <div className="persist__controls">
+          <label className="persist__optin">
+            <input
+              type="checkbox"
+              checked={saveAuthHeaders}
+              disabled={locked}
+              onChange={(e) => setSaveAuthHeaders(e.target.checked)}
+            />
+            {copy.build.persist.saveAuthHeaders}
+          </label>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            disabled={locked}
+            onClick={() => setResetOpen(true)}
+          >
+            {copy.build.persist.reset}
+          </button>
+        </div>
+      </div>
+
+      <ConfirmDialog
+        open={resetOpen}
+        title={copy.build.persist.resetConfirm.title}
+        message={copy.build.persist.resetConfirm.message}
+        confirmLabel={copy.build.persist.resetConfirm.confirm}
+        cancelLabel={copy.build.persist.resetConfirm.cancel}
+        onConfirm={() => {
+          setResetOpen(false);
+          resetConfig();
+        }}
+        onCancel={() => setResetOpen(false)}
+      />
 
       <div className="builder__footer">
         {!canProceed && <p className="builder__gate">{copy.build.gateReason}</p>}

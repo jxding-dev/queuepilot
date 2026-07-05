@@ -742,6 +742,41 @@ body {
   color: var(--text-muted);
 }
 
+/* Config persistence footer (Phase V2-P3) */
+.persist {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.persist__note {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.persist__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.persist__optin {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.persist__optin input {
+  width: 16px;
+  height: 16px;
+}
+
 /* ---- Run step (Phase 3) ---- */
 .presets {
   border: none;
@@ -801,6 +836,21 @@ body {
   margin: 10px 0 0;
   font-size: 13px;
   color: var(--text-muted);
+}
+
+.skip-sampled {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.skip-sampled input {
+  width: 16px;
+  height: 16px;
 }
 
 .btn--danger {

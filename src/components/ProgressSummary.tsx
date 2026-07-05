@@ -8,6 +8,7 @@ import type { RunState } from '../types';
 export function ProgressSummary() {
   const run = useStore((s) => s.run);
   const startedAt = useStore((s) => s.runStartedAt);
+  const baselineDone = useStore((s) => s.runBaselineDone);
 
   let success = 0;
   let failed = 0;
@@ -24,11 +25,13 @@ export function ProgressSummary() {
   // when its text changes, and this text only changes when a milestone is crossed.
   const milestone = [100, 75, 50, 25].find((m) => percent >= m) ?? 0;
 
-  // Rough estimate: wall-clock per completed row × remaining rows. Wall-clock
-  // already reflects concurrency, so no need to divide by it.
+  // Rough estimate: wall-clock per row processed THIS run × remaining rows.
+  // Rows already done at start (kept sample successes) are excluded so a
+  // skip-enabled full run doesn't start with a near-zero ETA.
+  const processedThisRun = done - baselineDone;
   let etaText: string | null = null;
-  if (run.phase === 'running' && startedAt && done > 0 && pending > 0) {
-    const perRow = (Date.now() - startedAt) / done;
+  if (run.phase === 'running' && startedAt && processedThisRun > 0 && pending > 0) {
+    const perRow = (Date.now() - startedAt) / processedThisRun;
     etaText = copy.run.eta(formatDuration(perRow * pending));
   }
 

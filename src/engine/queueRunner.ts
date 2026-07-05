@@ -180,6 +180,7 @@ export function makeExecuteRow(config: RequestTemplate, rows: CsvRow[]) {
         attempts: 1,
         httpStatus: response.status,
         errorMessage: outcome.errorMessage,
+        errorKind: outcome.errorKind,
         responseSnippet: snippet,
       };
     } catch (err) {
@@ -189,6 +190,7 @@ export function makeExecuteRow(config: RequestTemplate, rows: CsvRow[]) {
         status: outcome.status,
         attempts: 1,
         errorMessage: outcome.errorMessage,
+        errorKind: outcome.errorKind,
       };
     }
   };

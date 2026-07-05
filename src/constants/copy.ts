@@ -6,7 +6,7 @@ import type { HttpMethod } from '../types';
 
 // Display labels for the stepper. The store's STEPS array stays in English and is
 // used only as logic keys; these are what the user actually sees.
-export const STEP_LABELS = ['CSV 업로드', '요청 설정', '실행', '결과'] as const;
+export const STEP_LABELS = ['CSV 업로드', '요청 설정', '실행 · 결과'] as const;
 
 export const copy = {
   app: {
@@ -40,10 +40,6 @@ export const copy = {
       `전체 ${total.toLocaleString()}개 행 중 처음 ${shown}개를 표시합니다.`,
   },
 
-  placeholder: {
-    later: '이 단계는 이후 단계에서 제공됩니다.',
-  },
-
   build: {
     title: '요청 설정',
     methodLabel: '메서드',
@@ -63,6 +59,17 @@ export const copy = {
     continue: '다음: 실행',
     gateReason: 'URL을 입력하고, 존재하지 않는 컬럼 표시를 모두 해결하면 다음 단계로 넘어갈 수 있습니다.',
     lockedNote: '실행 중에는 요청 설정을 수정할 수 없습니다. 실행을 마치거나 중지한 뒤에 변경하세요.',
+    persist: {
+      note: '요청 설정은 이 브라우저에 자동 저장됩니다. CSV 데이터는 저장되지 않습니다.',
+      saveAuthHeaders: '인증 관련 Header 값도 저장 (공용 PC에서는 권장하지 않음)',
+      reset: '설정 초기화',
+      resetConfirm: {
+        title: '설정을 초기화할까요?',
+        message: '저장된 요청 설정을 지우고 기본값으로 되돌립니다.',
+        confirm: '초기화',
+        cancel: '취소',
+      },
+    },
   },
 
   preview: {
@@ -88,6 +95,10 @@ export const copy = {
     fullButton: (n: number) => `전체 ${n.toLocaleString()}개 행 전송`,
     fullDisabledTooltip: '먼저 5개 행 테스트를 실행하면 전체 전송이 열립니다.',
     reRunNote: '전체 실행은 테스트한 5개 행도 다시 전송합니다.',
+    skipSampled: {
+      label: '테스트에서 성공한 행은 건너뛰기',
+      noteChecked: (n: number) => `테스트에서 성공한 ${n.toLocaleString()}개 행은 건너뜁니다.`,
+    },
     stopButton: '중지',
     pauseButton: '일시정지',
     resumeButton: '재개',
@@ -99,11 +110,16 @@ export const copy = {
     deleteWarning: (n: number) =>
       `${n.toLocaleString()}개 행에 DELETE 요청을 보내려고 합니다. 대부분 되돌릴 수 없습니다. 5개 행 테스트도 실제 데이터를 삭제합니다.`,
 
-    // CORS explainer (shown when every sampled row fails the same network/CORS way)
+    // Auto-pause banner after repeated 429 responses
+    autoPause429:
+      'API가 요청 속도를 낮춰 달라고 응답해(429) 자동으로 일시정지했습니다. 속도를 낮춘 뒤 재개하세요. 실패한 행은 마지막에 재시도할 수 있습니다.',
+
+    // CORS explainer (shown when enough completed rows all failed the network/CORS way)
     cors: {
       title: '브라우저가 요청을 차단했습니다 (CORS)',
       body: '테스트한 모든 행이 같은 이유로 실패했습니다. 브라우저는 보안 규칙(CORS) 때문에 다른 서버로 보내는 요청을 막을 수 있습니다. 설정이 잘못된 것이 아니라 브라우저의 보안 정책입니다.',
       hint: '이 API가 브라우저(CORS) 요청을 허용하는지 확인하거나, CORS를 허용하는 엔드포인트 또는 프록시를 사용해야 할 수 있습니다.',
+      stopHint: '실행을 중지하고 원인을 먼저 확인하는 것을 권장합니다.',
     },
 
     statusLabel: {

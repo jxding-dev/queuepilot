@@ -16,6 +16,9 @@ export function RunControls() {
   const csv = useStore((s) => s.csv);
   const run = useStore((s) => s.run);
   const method = useStore((s) => s.config.method);
+  const autoPaused429 = useStore((s) => s.autoPaused429);
+  const skipSampledSuccess = useStore((s) => s.skipSampledSuccess);
+  const setSkipSampledSuccess = useStore((s) => s.setSkipSampledSuccess);
   const setPreset = useStore((s) => s.setPreset);
   const startSample = useStore((s) => s.startSample);
   const startFull = useStore((s) => s.startFull);
@@ -30,23 +33,27 @@ export function RunControls() {
   const total = csv.rows.length;
   const active = isRunActive(run.phase);
 
-  // Counts for the stop-confirm message (how many haven't been sent yet).
+  // Counts for the stop-confirm message (how many haven't been sent yet) and
+  // for the "N successful rows will be skipped" note.
   let done = 0;
+  let successCount = 0;
   for (const r of run.results.values()) {
     if (r.status === 'success' || r.status === 'failed') done++;
+    if (r.status === 'success') successCount++;
   }
   const remaining = run.results.size - done;
 
   const canResume = run.phase === 'paused' || run.phase === 'pausing';
 
-  // Every completed row failed the same network/CORS way -> one clear explainer
-  // instead of N identical row errors.
+  // Enough completed rows and every one failed the same network/CORS way -> one
+  // clear explainer instead of N identical row errors. Kind-based (no string
+  // compare) and shown early — in any phase, not just at the end.
+  const completed = [...run.results.values()].filter(
+    (r) => r.status === 'success' || r.status === 'failed',
+  );
   const allCors =
-    run.phase === 'done' &&
-    run.results.size > 0 &&
-    [...run.results.values()].every(
-      (r) => r.status === 'failed' && r.errorMessage === copy.run.errors.network,
-    );
+    completed.length >= 5 &&
+    completed.every((r) => r.status === 'failed' && r.errorKind === 'network');
 
   return (
     <section className="panel run">
@@ -58,8 +65,9 @@ export function RunControls() {
         </WarningBanner>
       )}
 
-      {/* Rate presets — locked while a run is active */}
-      <fieldset className="presets" disabled={active}>
+      {/* Rate presets — locked while a run is active, but editable while paused
+          so the user can lower the speed before resuming (e.g. after 429). */}
+      <fieldset className="presets" disabled={active && run.phase !== 'paused'}>
         <legend className="field__label">{copy.run.presetLabel}</legend>
         <div className="presets__options">
           {PRESET_ORDER.map((id) => {
@@ -83,6 +91,10 @@ export function RunControls() {
 
       {run.preset === 'fast' && (
         <WarningBanner tone="warn">{copy.run.fastWarning}</WarningBanner>
+      )}
+
+      {autoPaused429 && (
+        <WarningBanner tone="warn">{copy.run.autoPause429}</WarningBanner>
       )}
 
       {/* Actions */}
@@ -123,7 +135,24 @@ export function RunControls() {
         )}
       </div>
 
-      {!active && <p className="run__note">{copy.run.reRunNote}</p>}
+      {!active && run.sampleDone && (
+        <label className="skip-sampled">
+          <input
+            type="checkbox"
+            checked={skipSampledSuccess}
+            onChange={(e) => setSkipSampledSuccess(e.target.checked)}
+          />
+          {copy.run.skipSampled.label}
+        </label>
+      )}
+
+      {!active && (
+        <p className="run__note">
+          {run.sampleDone && skipSampledSuccess
+            ? copy.run.skipSampled.noteChecked(successCount)
+            : copy.run.reRunNote}
+        </p>
+      )}
 
       {/* Progress + results */}
       {run.phase === 'idle' ? (
@@ -136,6 +165,9 @@ export function RunControls() {
               <h3 className="cors-panel__title">{copy.run.cors.title}</h3>
               <p className="cors-panel__body">{copy.run.cors.body}</p>
               <p className="cors-panel__hint">{copy.run.cors.hint}</p>
+              {run.phase === 'running' && (
+                <p className="cors-panel__hint">{copy.run.cors.stopHint}</p>
+              )}
             </div>
           )}
           <div className="run__toolbar">

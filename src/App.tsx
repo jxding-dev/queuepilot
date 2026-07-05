@@ -1,5 +1,5 @@
-// Stepper shell. Upload and Build have content; Run / Results render a
-// placeholder until later phases. Navigation gating lives in the store.
+// Stepper shell. Three steps: Upload / Build / Run (which also shows results).
+// Navigation gating lives in the store.
 
 import { useEffect, useState } from 'react';
 import { useStore, isRunActive } from './state/store';
@@ -111,17 +111,6 @@ function UploadStep() {
   );
 }
 
-function PlaceholderStep({ label }: { label: string }) {
-  return (
-    <section className="panel">
-      <div className="placeholder">
-        <h2 className="panel__title">{label}</h2>
-        <p className="placeholder__text">{copy.placeholder.later}</p>
-      </div>
-    </section>
-  );
-}
-
 export default function App() {
   const step = useStore((s) => s.step);
   const runActive = useStore((s) => isRunActive(s.run.phase));
@@ -157,7 +146,6 @@ export default function App() {
         {step === 0 && <UploadStep />}
         {step === 1 && <RequestBuilder />}
         {step === 2 && <RunControls />}
-        {step === 3 && <PlaceholderStep label={STEP_LABELS[3]} />}
       </main>
     </div>
   );

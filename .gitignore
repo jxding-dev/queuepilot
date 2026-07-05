@@ -12,6 +12,11 @@ dist-ssr
 # Local test-only helpers (not part of the app)
 scratch/
 
-# Keep docs local — only README is published
+# Docs: README is public; the handoff, V2 phase plan, and Claude rules are also
+# published so the work can be continued on another machine. Internal templates
+# and the v1 product blueprint stay local.
 *.md
 !README.md
+!HANDOFF.md
+!V2-PROMPTS.md
+!CLAUDE.md

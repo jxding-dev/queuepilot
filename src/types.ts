@@ -22,12 +22,25 @@ export interface RequestTemplate {
 
 export type RowStatus = 'pending' | 'running' | 'success' | 'failed';
 
+// Machine-readable failure category — lets the UI branch on outcomes without
+// comparing localized error strings.
+export type ErrorKind =
+  | 'http_4xx'
+  | 'http_429'
+  | 'http_5xx'
+  | 'unexpected_status'
+  | 'timeout'
+  | 'network'
+  | 'aborted'
+  | 'unexpected';
+
 export interface RowResult {
   rowIndex: number;
   status: RowStatus;
   attempts: number;
   httpStatus?: number;
   errorMessage?: string;
+  errorKind?: ErrorKind; // undefined on success
   responseSnippet?: string;
 }
 

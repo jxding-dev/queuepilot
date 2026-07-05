@@ -1,8 +1,8 @@
-// Horizontal 4-step stepper. Buttons mirror the store's forward gating so a
+// Horizontal 3-step stepper. Buttons mirror the store's forward gating so a
 // step you can't reach also looks unreachable:
-//   Upload           — always
-//   Build            — after a CSV is parsed
-//   Run / Results    — after the request template is complete (URL + no unresolved tokens)
+//   Upload       — always
+//   Build        — after a CSV is parsed
+//   Run          — after the request template is complete (URL + no unresolved tokens)
 
 import { STEPS, useStore, isBuildComplete } from '../state/store';
 import { STEP_LABELS } from '../constants/copy';
