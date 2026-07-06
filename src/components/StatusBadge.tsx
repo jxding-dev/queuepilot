@@ -2,7 +2,7 @@
 // color alone. pending gray · running blue · success green · failed red.
 
 import type { RowStatus } from '../types';
-import { copy } from '../constants/copy';
+import { useCopy } from '../state/store';
 
 const ICON: Record<RowStatus, string> = {
   pending: '○',
@@ -12,6 +12,7 @@ const ICON: Record<RowStatus, string> = {
 };
 
 export function StatusBadge({ status }: { status: RowStatus }) {
+  const copy = useCopy();
   return (
     <span className={`badge badge--${status}`}>
       <span className="badge__icon" aria-hidden="true">

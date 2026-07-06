@@ -2,11 +2,12 @@
 // 10k-row file previews instantly without freezing the tab.
 
 import type { CsvData } from '../types';
-import { copy } from '../constants/copy';
+import { useCopy } from '../state/store';
 
 const PREVIEW_ROWS = 20;
 
 export function CsvPreviewTable({ csv }: { csv: CsvData }) {
+  const copy = useCopy();
   const rows = csv.rows.slice(0, PREVIEW_ROWS);
 
   return (

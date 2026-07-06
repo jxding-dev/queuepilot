@@ -6,11 +6,11 @@ import { useRef, useState } from 'react';
 import type { HttpMethod } from '../types';
 import {
   useStore,
+  useCopy,
   methodHasBody,
   isBuildComplete,
   isRunActive,
 } from '../state/store';
-import { copy } from '../constants/copy';
 import { VariablePicker } from './VariablePicker';
 import { RequestPreview } from './RequestPreview';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -24,6 +24,7 @@ interface FocusTarget {
 }
 
 export function RequestBuilder() {
+  const copy = useCopy();
   const csv = useStore((s) => s.csv);
   const config = useStore((s) => s.config);
   const setMethod = useStore((s) => s.setMethod);

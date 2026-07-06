@@ -95,6 +95,28 @@ body {
   font-size: 14px;
 }
 
+.locale-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.locale-toggle__btn {
+  padding: 4px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.locale-toggle__btn--active {
+  background: var(--accent);
+  color: #fff;
+}
+
 .app__main {
   margin-top: 20px;
 }

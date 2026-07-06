@@ -1,11 +1,12 @@
 // Sticky run summary: phase text, progress bar, "done / total", live success /
 // failed / pending counts, and a rough ETA from average wall-clock per row.
 
-import { useStore } from '../state/store';
-import { copy } from '../constants/copy';
+import { useStore, useCopy } from '../state/store';
+import type { CopyDict } from '../constants/copy';
 import type { RunState } from '../types';
 
 export function ProgressSummary() {
+  const copy = useCopy();
   const run = useStore((s) => s.run);
   const startedAt = useStore((s) => s.runStartedAt);
   const baselineDone = useStore((s) => s.runBaselineDone);
@@ -32,13 +33,13 @@ export function ProgressSummary() {
   let etaText: string | null = null;
   if (run.phase === 'running' && startedAt && processedThisRun > 0 && pending > 0) {
     const perRow = (Date.now() - startedAt) / processedThisRun;
-    etaText = copy.run.eta(formatDuration(perRow * pending));
+    etaText = copy.run.eta(formatDuration(perRow * pending, copy));
   }
 
   return (
     <div className="progress">
       <div className="progress__top">
-        <span className="progress__phase">{phaseLabel(run, done)}</span>
+        <span className="progress__phase">{phaseLabel(run, done, copy)}</span>
         <span className="progress__count">{copy.run.progress(done, total)}</span>
       </div>
 
@@ -62,7 +63,7 @@ export function ProgressSummary() {
   );
 }
 
-function phaseLabel(run: RunState, done: number): string {
+function phaseLabel(run: RunState, done: number, copy: CopyDict): string {
   switch (run.phase) {
     case 'running':
       return copy.run.runningLabel;
@@ -79,7 +80,7 @@ function phaseLabel(run: RunState, done: number): string {
   }
 }
 
-function formatDuration(ms: number): string {
+function formatDuration(ms: number, copy: CopyDict): string {
   const seconds = Math.ceil(ms / 1000);
   if (seconds < 60) return copy.run.etaSeconds(seconds);
   return copy.run.etaMinutes(Math.ceil(seconds / 60));

@@ -3,13 +3,13 @@
 // aborted, a confirm dialog warns about possible duplicates before retrying.
 
 import { useState } from 'react';
-import { useStore } from '../state/store';
-import { copy } from '../constants/copy';
+import { useStore, useCopy } from '../state/store';
 import { ConfirmDialog } from './ConfirmDialog';
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH']);
 
 export function RetryFailedButton() {
+  const copy = useCopy();
   const run = useStore((s) => s.run);
   const method = useStore((s) => s.config.method);
   const retryFailed = useStore((s) => s.retryFailed);
@@ -21,11 +21,10 @@ export function RetryFailedButton() {
   if (failed.length === 0) return null;
 
   // Duplicate risk only for mutating methods where a failure might have reached
-  // the server (timeout or abort messages).
+  // the server. Uses the locale-independent errorKind (not a string compare) so
+  // it stays correct regardless of the locale a result was recorded in.
   const riskyFailure = failed.some(
-    (r) =>
-      r.errorMessage === copy.run.errors.timeout ||
-      r.errorMessage === copy.run.errors.aborted,
+    (r) => r.errorKind === 'timeout' || r.errorKind === 'aborted',
   );
   const showDupWarning = MUTATING.has(method) && riskyFailure;
 

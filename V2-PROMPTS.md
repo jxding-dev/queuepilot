@@ -38,7 +38,7 @@ It is designed to be executed **one phase at a time** by a coding agent (Opus).
 - [x] V2-P4 — Skip sample-successful rows on full run — 2026-07-05
 - [x] V2-P5 — Response value extraction (`qp_extracted`) — 2026-07-06
 - [x] V2-P6 — Demo mode ("try with sample data") — 2026-07-06
-- [ ] V2-P7 — English UI toggle (**requires P2 done first**)
+- [x] V2-P7 — English UI toggle (**requires P2 done first**) — 2026-07-06
 - [ ] V2-P8 — Vercel migration prep (run when actually migrating)
 
 Dependency notes: P2 must be done before P7 (P7 relies on `errorKind`).

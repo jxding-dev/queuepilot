@@ -12,6 +12,7 @@ import { runQueue, createRunControl, makeExecuteRow, type RunHandle } from '../e
 import { PRESETS, DEFAULT_PRESET, type PresetId } from '../lib/presets';
 import { loadConfig, saveConfig, clearConfig } from '../lib/configStorage';
 import { DEMO_CSV, DEMO_CONFIG, makeDemoExecuteRow } from '../lib/demo';
+import { dictionaries, type Locale, type CopyDict } from '../constants/copy';
 
 const SAMPLE_SIZE = 5;
 const FLUSH_MS = 100;
@@ -29,6 +30,19 @@ const DEFAULT_CONFIG: RequestTemplate = {
 
 // Restore the saved request template + preset (or defaults) at store creation.
 const LOADED = loadConfig(DEFAULT_CONFIG, DEFAULT_PRESET);
+
+const LOCALE_KEY = 'qp_locale';
+
+/** Saved locale, else the browser language (ko → Korean, otherwise English). */
+function loadLocale(): Locale {
+  try {
+    const saved = localStorage.getItem(LOCALE_KEY);
+    if (saved === 'ko' || saved === 'en') return saved;
+  } catch {
+    /* private mode / disabled — fall through to language detection */
+  }
+  return typeof navigator !== 'undefined' && navigator.language.startsWith('ko') ? 'ko' : 'en';
+}
 
 /** Methods that carry a request body; GET/DELETE hide the body editor. */
 export function methodHasBody(method: HttpMethod): boolean {
@@ -106,11 +120,13 @@ interface AppState {
 
   // ui slice
   step: number;
+  locale: Locale; // active UI language
 
   // actions
   parseFile: (file: File) => Promise<void>;
   startDemo: () => void;
   clearCsv: () => void;
+  setLocale: (locale: Locale) => void;
   setStep: (step: number) => void;
   setMethod: (method: HttpMethod) => void;
   setUrlTemplate: (urlTemplate: string) => void;
@@ -156,25 +172,36 @@ export const useStore = create<AppState>((set, get) => ({
   skipSampledSuccess: true,
   demoMode: false,
   step: 0,
+  locale: loadLocale(),
 
   parseFile: async (file) => {
     set({ isParsing: true, parseError: null });
+    const strings = dictionaries[get().locale];
     try {
-      const csv = await parseCsvFile(file);
+      const csv = await parseCsvFile(file, strings.csv);
       set({ csv, isParsing: false });
     } catch (err) {
       set({
         csv: null,
         isParsing: false,
-        parseError:
-          err instanceof Error ? err.message : '이 파일을 CSV로 읽을 수 없습니다.',
+        parseError: err instanceof Error ? err.message : strings.upload.readFailed,
       });
     }
   },
 
+  setLocale: (locale) => {
+    set({ locale });
+    try {
+      localStorage.setItem(LOCALE_KEY, locale);
+    } catch {
+      /* private mode / disabled — persistence is best-effort */
+    }
+  },
+
   startDemo: () => {
-    // Fresh simulator per demo session (resets its retry-success memory).
-    demoExecute = makeDemoExecuteRow(DEMO_CSV.rows);
+    // Fresh simulator per demo session (resets its retry-success memory). Error
+    // strings are captured at the locale active when the demo starts.
+    demoExecute = makeDemoExecuteRow(DEMO_CSV.rows, dictionaries[get().locale].run.errors);
     set((s) => ({
       csv: DEMO_CSV,
       config: DEMO_CONFIG,
@@ -299,6 +326,14 @@ export const useStore = create<AppState>((set, get) => ({
   },
 }));
 
+/**
+ * The active locale's copy dictionary. Lives here (not in copy.ts) so components
+ * depend on the store for translations without copy.ts importing the store.
+ */
+export function useCopy(): CopyDict {
+  return useStore((s) => dictionaries[s.locale]);
+}
+
 // Auto-save the request template + preset (debounced) whenever they change.
 // CSV data and run results are never persisted. The subscribe fires on every
 // state change (incl. per-flush run updates), so we compare config/preset refs
@@ -418,7 +453,7 @@ async function beginRun(
   const rawExecute =
     state.demoMode && demoExecute
       ? demoExecute
-      : makeExecuteRow(state.config, state.csv.rows);
+      : makeExecuteRow(state.config, state.csv.rows, dictionaries[state.locale].run.errors);
 
   // Track in-flight requests so "Pausing…" can flip to "Paused" once the last
   // active request settles (in-flight requests finish naturally on pause).

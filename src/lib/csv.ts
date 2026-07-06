@@ -12,8 +12,18 @@
 import Papa from 'papaparse';
 import type { CsvData, CsvRow, RowResult } from '../types';
 
+/** Localized CSV parse warnings/errors, injected so no UI strings live here. */
+export interface CsvStrings {
+  missingHeader: string;
+  parseProblem: (message: string) => string;
+  fieldMismatch: (rowNum: number, expected: number, actual: number) => string;
+  noDataRows: string;
+  duplicateHeader: (base: string, name: string) => string;
+  emptyHeader: (pos: number, name: string) => string;
+}
+
 /** Parse a user-selected CSV file into normalized CsvData. */
-export function parseCsvFile(file: File): Promise<CsvData> {
+export function parseCsvFile(file: File, strings: CsvStrings): Promise<CsvData> {
   return new Promise((resolve, reject) => {
     // header:false so we control header de-duplication/renaming ourselves.
     Papa.parse<string[]>(file, {
@@ -22,7 +32,7 @@ export function parseCsvFile(file: File): Promise<CsvData> {
       dynamicTyping: false,
       complete: (results) => {
         try {
-          resolve(buildCsvData(file.name, results.data, results.errors));
+          resolve(buildCsvData(file.name, results.data, results.errors, strings));
         } catch (err) {
           reject(err);
         }
@@ -36,21 +46,20 @@ export function buildCsvData(
   fileName: string,
   data: string[][],
   parseErrors: Papa.ParseError[],
+  strings: CsvStrings,
 ): CsvData {
   if (!data.length || !data[0]?.length) {
-    throw new Error(
-      '헤더 행이 없습니다. 첫 번째 행이 컬럼 이름인 CSV 파일이 필요합니다.',
-    );
+    throw new Error(strings.missingHeader);
   }
 
   const warnings: string[] = [];
-  const columns = normalizeHeaders(data[0], warnings);
+  const columns = normalizeHeaders(data[0], warnings, strings);
 
   // Surface non field-mismatch parse errors (e.g. quote problems). Field
   // mismatches are reported per-row below with clearer wording.
   for (const err of parseErrors) {
     if (err.type !== 'FieldMismatch') {
-      warnings.push(`파싱 문제: ${err.message}`);
+      warnings.push(strings.parseProblem(err.message));
     }
   }
 
@@ -62,22 +71,20 @@ export function buildCsvData(
       row[columns[c]] = cells[c] ?? '';
     }
     if (cells.length !== columns.length) {
-      warnings.push(
-        `${i}번째 행: 필드가 ${columns.length}개여야 하는데 ${cells.length}개입니다. 그대로 가져왔습니다.`,
-      );
+      warnings.push(strings.fieldMismatch(i, columns.length, cells.length));
     }
     rows.push(row);
   }
 
   if (rows.length === 0) {
-    warnings.push('헤더는 있지만 데이터 행이 없습니다.');
+    warnings.push(strings.noDataRows);
   }
 
   return { fileName, columns, rows, warnings };
 }
 
 /** Trim, rename empty headers by position, and de-duplicate collisions. */
-function normalizeHeaders(rawHeader: string[], warnings: string[]): string[] {
+function normalizeHeaders(rawHeader: string[], warnings: string[], strings: CsvStrings): string[] {
   const assigned = new Set<string>();
   const columns: string[] = [];
 
@@ -93,9 +100,9 @@ function normalizeHeaders(rawHeader: string[], warnings: string[]): string[] {
       let n = 2;
       while (assigned.has(`${base}_${n}`)) n++;
       name = `${base}_${n}`;
-      warnings.push(`중복된 헤더 "${base}"을(를) "${name}"(으)로 변경했습니다.`);
+      warnings.push(strings.duplicateHeader(base, name));
     } else if (wasEmpty) {
-      warnings.push(`${index + 1}번째 컬럼의 빈 헤더를 "${name}"(으)로 변경했습니다.`);
+      warnings.push(strings.emptyHeader(index + 1, name));
     }
 
     assigned.add(name);

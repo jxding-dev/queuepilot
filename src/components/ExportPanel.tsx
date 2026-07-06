@@ -1,11 +1,11 @@
 // Download the results as a CSV: original columns + qp_* result columns. Shown
 // whenever any results exist (including after a stopped run).
 
-import { useStore } from '../state/store';
+import { useStore, useCopy } from '../state/store';
 import { downloadResultCsv } from '../lib/csv';
-import { copy } from '../constants/copy';
 
 export function ExportPanel() {
+  const copy = useCopy();
   const csv = useStore((s) => s.csv);
   const results = useStore((s) => s.run.results);
 

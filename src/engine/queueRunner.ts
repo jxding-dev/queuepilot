@@ -10,7 +10,7 @@
 
 import type { CsvRow, RequestTemplate, RowResult } from '../types';
 import { substitute } from './templating';
-import { classifyHttpStatus, classifyThrownError } from './errors';
+import { classifyHttpStatus, classifyThrownError, type ErrorStrings } from './errors';
 import { extractByPath } from './extract';
 
 // ---------------------------------------------------------------------------
@@ -141,7 +141,7 @@ const SNIPPET_CHARS = 500;
  * Returns an `execute(rowIndex, signal)` bound to a template + rows. Every call
  * resolves to a RowResult; failures are caught and classified (never thrown).
  */
-export function makeExecuteRow(config: RequestTemplate, rows: CsvRow[]) {
+export function makeExecuteRow(config: RequestTemplate, rows: CsvRow[], errorStrings: ErrorStrings) {
   const hasBody = config.method !== 'GET' && config.method !== 'DELETE';
 
   return async function executeRow(
@@ -180,7 +180,7 @@ export function makeExecuteRow(config: RequestTemplate, rows: CsvRow[]) {
         ? extractByPath(fullText, extractPath)
         : undefined;
       const snippet = fullText.slice(0, SNIPPET_CHARS);
-      const outcome = classifyHttpStatus(response.status, response.statusText);
+      const outcome = classifyHttpStatus(response.status, response.statusText, errorStrings);
 
       return {
         rowIndex,
@@ -193,7 +193,7 @@ export function makeExecuteRow(config: RequestTemplate, rows: CsvRow[]) {
         extractedValue,
       };
     } catch (err) {
-      const outcome = classifyThrownError(err, runSignal.aborted);
+      const outcome = classifyThrownError(err, runSignal.aborted, errorStrings);
       return {
         rowIndex,
         status: outcome.status,

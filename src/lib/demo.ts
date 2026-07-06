@@ -6,7 +6,7 @@
 // simulator, the request still couldn't reach anything real. Do not change it.
 
 import type { CsvData, CsvRow, RequestTemplate, RowResult } from '../types';
-import { classifyHttpStatus, classifyThrownError } from '../engine/errors';
+import { classifyHttpStatus, classifyThrownError, type ErrorStrings } from '../engine/errors';
 import { extractByPath } from '../engine/extract';
 
 // --- Bundled sample data --------------------------------------------------
@@ -77,7 +77,7 @@ function sleepUnlessAborted(ms: number, signal: AbortSignal): Promise<void> {
  * failed rows" flow ends as a success story — this is why the executor instance
  * must be kept across runs (the caller memoizes it for the demo session).
  */
-export function makeDemoExecuteRow(_rows: CsvRow[]) {
+export function makeDemoExecuteRow(_rows: CsvRow[], errorStrings: ErrorStrings) {
   const failedOnce = new Set<number>();
 
   return async function executeDemoRow(
@@ -89,7 +89,7 @@ export function makeDemoExecuteRow(_rows: CsvRow[]) {
     await sleepUnlessAborted(latency, signal);
 
     if (signal.aborted) {
-      const aborted = classifyThrownError(null, true);
+      const aborted = classifyThrownError(null, true, errorStrings);
       return {
         rowIndex,
         status: aborted.status,
@@ -105,7 +105,7 @@ export function makeDemoExecuteRow(_rows: CsvRow[]) {
     else if (rowIndex % 10 === 7) httpStatus = 404;
     else httpStatus = 200;
 
-    const outcome = classifyHttpStatus(httpStatus, '');
+    const outcome = classifyHttpStatus(httpStatus, '', errorStrings);
 
     if (outcome.status === 'failed') {
       failedOnce.add(rowIndex);

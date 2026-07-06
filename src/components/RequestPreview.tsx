@@ -5,11 +5,11 @@
 //   - substituted JSON body fails JSON.parse -> non-blocking warning
 
 import { useMemo } from 'react';
-import { useStore, methodHasBody, configUnresolvedTokens } from '../state/store';
+import { useStore, useCopy, methodHasBody, configUnresolvedTokens } from '../state/store';
 import { substitute } from '../engine/templating';
-import { copy } from '../constants/copy';
 
 export function RequestPreview() {
+  const copy = useCopy();
   const csv = useStore((s) => s.csv);
   const config = useStore((s) => s.config);
 

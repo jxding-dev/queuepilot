@@ -3,14 +3,14 @@
 // paginate at 50 rows/page (no virtualization).
 
 import { useState } from 'react';
-import { useStore } from '../state/store';
-import { copy } from '../constants/copy';
+import { useStore, useCopy } from '../state/store';
 import { StatusBadge } from './StatusBadge';
 
 const PAGE_SIZE = 50;
 type Filter = 'all' | 'failed';
 
 export function ResultTable() {
+  const copy = useCopy();
   const csv = useStore((s) => s.csv);
   const results = useStore((s) => s.run.results);
   const [filter, setFilter] = useState<Filter>('all');

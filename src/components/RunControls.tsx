@@ -2,9 +2,8 @@
 // pause/resume/stop. Progress summary + result table replace the Phase 3 list.
 
 import { useState } from 'react';
-import { useStore, isRunActive } from '../state/store';
+import { useStore, useCopy, isRunActive } from '../state/store';
 import { PRESET_ORDER } from '../lib/presets';
-import { copy } from '../constants/copy';
 import { ProgressSummary } from './ProgressSummary';
 import { ResultTable } from './ResultTable';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -13,6 +12,7 @@ import { ExportPanel } from './ExportPanel';
 import { WarningBanner } from './WarningBanner';
 
 export function RunControls() {
+  const copy = useCopy();
   const csv = useStore((s) => s.csv);
   const run = useStore((s) => s.run);
   const method = useStore((s) => s.config.method);

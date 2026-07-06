@@ -2,8 +2,8 @@
 // Navigation gating lives in the store.
 
 import { useEffect, useState } from 'react';
-import { useStore, isRunActive } from './state/store';
-import { STEP_LABELS, copy } from './constants/copy';
+import { useStore, useCopy, isRunActive } from './state/store';
+import type { Locale } from './constants/copy';
 import { StepNav } from './components/StepNav';
 import { CsvDropzone } from './components/CsvDropzone';
 import { CsvPreviewTable } from './components/CsvPreviewTable';
@@ -15,6 +15,7 @@ const PRIVACY_KEY = 'qp_privacy_dismissed';
 
 // First-visit privacy notice. localStorage is used ONLY for this dismissal flag.
 function PrivacyBanner() {
+  const copy = useCopy();
   const [dismissed, setDismissed] = useState(() => {
     try {
       return localStorage.getItem(PRIVACY_KEY) === '1';
@@ -43,6 +44,7 @@ function PrivacyBanner() {
 
 // Isolated so the frequent run-progress title updates don't re-render the shell.
 function DocumentTitle() {
+  const copy = useCopy();
   const step = useStore((s) => s.step);
   const phase = useStore((s) => s.run.phase);
   const results = useStore((s) => s.run.results);
@@ -53,18 +55,23 @@ function DocumentTitle() {
         if (r.status === 'success' || r.status === 'failed') done++;
       }
       const label =
-        phase === 'stopping' ? '중지 중' : phase === 'running' ? '실행 중' : '일시정지';
+        phase === 'stopping'
+          ? copy.docTitle.stopping
+          : phase === 'running'
+            ? copy.docTitle.running
+            : copy.docTitle.paused;
       document.title = `QueuePilot — ${label} ${done.toLocaleString()}/${results.size.toLocaleString()}`;
     } else {
-      document.title = `QueuePilot — ${STEP_LABELS[step]}`;
+      document.title = `QueuePilot — ${copy.stepLabels[step]}`;
     }
-  }, [step, phase, results]);
+  }, [copy, step, phase, results]);
   return null;
 }
 
 // Persistent banner while the demo is active, so the visitor always knows no real
 // requests are being sent and can exit back to the empty upload screen.
 function DemoBanner() {
+  const copy = useCopy();
   const demoMode = useStore((s) => s.demoMode);
   const clearCsv = useStore((s) => s.clearCsv);
   if (!demoMode) return null;
@@ -76,6 +83,7 @@ function DemoBanner() {
 }
 
 function UploadStep() {
+  const copy = useCopy();
   const csv = useStore((s) => s.csv);
   const clearCsv = useStore((s) => s.clearCsv);
   const setStep = useStore((s) => s.setStep);
@@ -131,7 +139,32 @@ function UploadStep() {
   );
 }
 
+// Korean/English toggle. Shows each language in its own name; the active one is
+// highlighted. Switching updates the whole UI instantly (persisted in the store).
+function LocaleToggle() {
+  const copy = useCopy();
+  const locale = useStore((s) => s.locale);
+  const setLocale = useStore((s) => s.setLocale);
+  const options: Locale[] = ['ko', 'en'];
+  return (
+    <div className="locale-toggle" role="group" aria-label="Language">
+      {options.map((id) => (
+        <button
+          key={id}
+          type="button"
+          className={'locale-toggle__btn' + (locale === id ? ' locale-toggle__btn--active' : '')}
+          aria-pressed={locale === id}
+          onClick={() => setLocale(id)}
+        >
+          {copy.lang[id]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function App() {
+  const copy = useCopy();
   const step = useStore((s) => s.step);
   const runActive = useStore((s) => isRunActive(s.run.phase));
 
@@ -159,6 +192,7 @@ export default function App() {
           <span className="app__name">QueuePilot</span>
         </div>
         <p className="app__tagline">{copy.app.tagline}</p>
+        <LocaleToggle />
       </header>
 
       <StepNav />

@@ -2,14 +2,14 @@
 // message and shows a parsing / error state.
 
 import { useRef, useState } from 'react';
-import { useStore } from '../state/store';
-import { copy } from '../constants/copy';
+import { useStore, useCopy } from '../state/store';
 
 function isCsvFile(file: File): boolean {
   return /\.csv$/i.test(file.name) || file.type === 'text/csv';
 }
 
 export function CsvDropzone() {
+  const copy = useCopy();
   const parseFile = useStore((s) => s.parseFile);
   const isParsing = useStore((s) => s.isParsing);
   const parseError = useStore((s) => s.parseError);

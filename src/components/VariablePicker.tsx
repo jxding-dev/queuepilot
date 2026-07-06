@@ -4,7 +4,7 @@
 // onMouseDown -> preventDefault keeps focus (and the text selection) in the input
 // so the caret position is still valid when onClick fires.
 
-import { copy } from '../constants/copy';
+import { useCopy } from '../state/store';
 
 interface VariablePickerProps {
   columns: string[];
@@ -12,6 +12,7 @@ interface VariablePickerProps {
 }
 
 export function VariablePicker({ columns, onInsert }: VariablePickerProps) {
+  const copy = useCopy();
   return (
     <div className="varpicker">
       <div className="varpicker__head">

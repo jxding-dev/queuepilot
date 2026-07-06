@@ -4,10 +4,10 @@
 //   Build        — after a CSV is parsed
 //   Run          — after the request template is complete (URL + no unresolved tokens)
 
-import { STEPS, useStore, isBuildComplete } from '../state/store';
-import { STEP_LABELS } from '../constants/copy';
+import { STEPS, useStore, useCopy, isBuildComplete } from '../state/store';
 
 export function StepNav() {
+  const copy = useCopy();
   const step = useStore((s) => s.step);
   const csv = useStore((s) => s.csv);
   const config = useStore((s) => s.config);
@@ -39,7 +39,7 @@ export function StepNav() {
                 onClick={() => setStep(index)}
               >
                 <span className="stepnav__num">{isComplete ? '✓' : index + 1}</span>
-                <span className="stepnav__label">{STEP_LABELS[index]}</span>
+                <span className="stepnav__label">{copy.stepLabels[index]}</span>
               </button>
               {index < STEPS.length - 1 && <span className="stepnav__sep" aria-hidden="true" />}
             </li>
