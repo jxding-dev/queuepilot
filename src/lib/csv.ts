@@ -111,6 +111,7 @@ const RESULT_COLUMN_BASES = [
   'qp_http_status',
   'qp_error',
   'qp_response',
+  'qp_extracted',
   'qp_attempts',
 ] as const;
 
@@ -153,14 +154,15 @@ export function buildResultCsv(
   return Papa.unparse({ fields, data });
 }
 
-/** The five qp_* cell values for one row (undefined result = never run). */
+/** The qp_* cell values for one row (undefined result = never run). */
 function resultCells(result: RowResult | undefined): string[] {
-  if (!result) return ['pending', '', '', '', ''];
+  if (!result) return ['pending', '', '', '', '', ''];
   return [
     result.status,
     result.httpStatus != null ? String(result.httpStatus) : '',
     result.errorMessage ?? '',
     result.responseSnippet ?? '',
+    result.extractedValue ?? '',
     result.attempts > 0 ? String(result.attempts) : '',
   ];
 }

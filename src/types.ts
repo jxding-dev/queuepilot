@@ -18,6 +18,9 @@ export interface RequestTemplate {
   urlTemplate: string;
   headers: { key: string; value: string }[];
   bodyTemplate: string;
+  // Optional dot-path extracted from each response into the qp_extracted column.
+  // NOT a template — no {{token}} substitution is applied.
+  extractPath: string;
 }
 
 export type RowStatus = 'pending' | 'running' | 'success' | 'failed';
@@ -42,6 +45,7 @@ export interface RowResult {
   errorMessage?: string;
   errorKind?: ErrorKind; // undefined on success
   responseSnippet?: string;
+  extractedValue?: string; // value pulled from the response via config.extractPath
 }
 
 export type RunPhase = 'idle' | 'running' | 'pausing' | 'paused' | 'stopping' | 'done';

@@ -15,7 +15,7 @@ const csv: CsvData = {
 };
 
 const results = new Map<number, RowResult>([
-  [0, { rowIndex: 0, status: 'success', attempts: 1, httpStatus: 200, responseSnippet: 'ok' }],
+  [0, { rowIndex: 0, status: 'success', attempts: 1, httpStatus: 200, responseSnippet: 'ok', extractedValue: 'ABC' }],
   [1, { rowIndex: 1, status: 'failed', attempts: 2, httpStatus: 500, errorMessage: 'boom' }],
   // row 2 intentionally absent -> "never run"
 ]);
@@ -29,7 +29,7 @@ describe('buildResultCsv', () => {
   it('keeps original columns in order, then appends qp_* columns', () => {
     const out = buildResultCsv(csv, results);
     const header = out.split(/\r?\n/)[0];
-    expect(header).toBe('id,email,qp_status,qp_http_status,qp_error,qp_response,qp_attempts');
+    expect(header).toBe('id,email,qp_status,qp_http_status,qp_error,qp_response,qp_extracted,qp_attempts');
   });
 
   it('fills result cells; a never-run row is pending with empty fields', () => {
@@ -39,10 +39,11 @@ describe('buildResultCsv', () => {
       qp_status: 'success',
       qp_http_status: '200',
       qp_response: 'ok',
+      qp_extracted: 'ABC',
       qp_attempts: '1',
     });
-    expect(rows[1]).toMatchObject({ qp_status: 'failed', qp_http_status: '500', qp_error: 'boom', qp_attempts: '2' });
-    expect(rows[2]).toMatchObject({ id: '3', qp_status: 'pending', qp_http_status: '', qp_error: '', qp_attempts: '' });
+    expect(rows[1]).toMatchObject({ qp_status: 'failed', qp_http_status: '500', qp_error: 'boom', qp_extracted: '', qp_attempts: '2' });
+    expect(rows[2]).toMatchObject({ id: '3', qp_status: 'pending', qp_http_status: '', qp_error: '', qp_extracted: '', qp_attempts: '' });
   });
 
   it('suffixes result columns that collide with original qp_ columns', () => {
@@ -53,10 +54,24 @@ describe('buildResultCsv', () => {
     };
     const out = buildResultCsv(collide, new Map([[0, { rowIndex: 0, status: 'success', attempts: 1 }]]));
     const header = out.split(/\r?\n/)[0];
-    expect(header).toBe('id,qp_status,qp_status_2,qp_http_status,qp_error,qp_response,qp_attempts');
+    expect(header).toBe('id,qp_status,qp_status_2,qp_http_status,qp_error,qp_response,qp_extracted,qp_attempts');
     const rows = parse(out);
     expect(rows[0].qp_status).toBe('original-value'); // original preserved
     expect(rows[0].qp_status_2).toBe('success'); // result went to the suffixed column
+  });
+
+  it('suffixes qp_extracted when the original CSV already has that column', () => {
+    const collide: CsvData = {
+      ...csv,
+      columns: ['id', 'qp_extracted'],
+      rows: [{ id: '1', qp_extracted: 'original-value' }],
+    };
+    const out = buildResultCsv(collide, new Map([[0, { rowIndex: 0, status: 'success', attempts: 1, extractedValue: 'X' }]]));
+    const header = out.split(/\r?\n/)[0];
+    expect(header).toBe('id,qp_extracted,qp_status,qp_http_status,qp_error,qp_response,qp_extracted_2,qp_attempts');
+    const rows = parse(out);
+    expect(rows[0].qp_extracted).toBe('original-value'); // original preserved
+    expect(rows[0].qp_extracted_2).toBe('X'); // extracted value went to the suffixed column
   });
 
   it('escapes commas, quotes and newlines so the row survives a round-trip', () => {

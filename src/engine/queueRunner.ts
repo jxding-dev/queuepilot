@@ -11,6 +11,7 @@
 import type { CsvRow, RequestTemplate, RowResult } from '../types';
 import { substitute } from './templating';
 import { classifyHttpStatus, classifyThrownError } from './errors';
+import { extractByPath } from './extract';
 
 // ---------------------------------------------------------------------------
 // Run control: stop flag + pause gate + abort signal
@@ -171,7 +172,14 @@ export function makeExecuteRow(config: RequestTemplate, rows: CsvRow[]) {
         redirect: 'follow',
       });
 
-      const snippet = (await safeReadText(response)).slice(0, SNIPPET_CHARS);
+      // Read the FULL body first: extraction must see values beyond the snippet
+      // cutoff, so extract before truncating. Runs on success and error bodies.
+      const fullText = await safeReadText(response);
+      const extractPath = config.extractPath.trim();
+      const extractedValue = extractPath
+        ? extractByPath(fullText, extractPath)
+        : undefined;
+      const snippet = fullText.slice(0, SNIPPET_CHARS);
       const outcome = classifyHttpStatus(response.status, response.statusText);
 
       return {
@@ -182,6 +190,7 @@ export function makeExecuteRow(config: RequestTemplate, rows: CsvRow[]) {
         errorMessage: outcome.errorMessage,
         errorKind: outcome.errorKind,
         responseSnippet: snippet,
+        extractedValue,
       };
     } catch (err) {
       const outcome = classifyThrownError(err, runSignal.aborted);

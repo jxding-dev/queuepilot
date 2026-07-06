@@ -56,6 +56,11 @@ export const copy = {
       `${method} 요청에는 보통 Body가 없어 입력란을 숨겼습니다.`,
     variablePickerTitle: '컬럼값 삽입',
     variablePickerHint: '입력란을 클릭한 뒤 컬럼을 누르면 커서 위치에 {{컬럼}}이 삽입됩니다.',
+    extract: {
+      label: '응답에서 값 추출 (선택)',
+      placeholder: 'data.coupon_code',
+      hint: '응답 JSON에서 이 경로의 값을 결과 CSV의 qp_extracted 컬럼에 담습니다.',
+    },
     continue: '다음: 실행',
     gateReason: 'URL을 입력하고, 존재하지 않는 컬럼 표시를 모두 해결하면 다음 단계로 넘어갈 수 있습니다.',
     lockedNote: '실행 중에는 요청 설정을 수정할 수 없습니다. 실행을 마치거나 중지한 뒤에 변경하세요.',

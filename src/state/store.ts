@@ -23,6 +23,7 @@ const DEFAULT_CONFIG: RequestTemplate = {
   urlTemplate: '',
   headers: [{ key: '', value: '' }],
   bodyTemplate: '',
+  extractPath: '',
 };
 
 // Restore the saved request template + preset (or defaults) at store creation.
@@ -111,6 +112,7 @@ interface AppState {
   setMethod: (method: HttpMethod) => void;
   setUrlTemplate: (urlTemplate: string) => void;
   setBodyTemplate: (bodyTemplate: string) => void;
+  setExtractPath: (extractPath: string) => void;
   addHeader: () => void;
   updateHeader: (index: number, patch: Partial<{ key: string; value: string }>) => void;
   removeHeader: (index: number) => void;
@@ -180,6 +182,8 @@ export const useStore = create<AppState>((set, get) => ({
   setUrlTemplate: (urlTemplate) => set((s) => ({ config: { ...s.config, urlTemplate } })),
 
   setBodyTemplate: (bodyTemplate) => set((s) => ({ config: { ...s.config, bodyTemplate } })),
+
+  setExtractPath: (extractPath) => set((s) => ({ config: { ...s.config, extractPath } })),
 
   addHeader: () =>
     set((s) => ({

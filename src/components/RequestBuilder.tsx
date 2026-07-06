@@ -29,6 +29,7 @@ export function RequestBuilder() {
   const setMethod = useStore((s) => s.setMethod);
   const setUrlTemplate = useStore((s) => s.setUrlTemplate);
   const setBodyTemplate = useStore((s) => s.setBodyTemplate);
+  const setExtractPath = useStore((s) => s.setExtractPath);
   const addHeader = useStore((s) => s.addHeader);
   const updateHeader = useStore((s) => s.updateHeader);
   const removeHeader = useStore((s) => s.removeHeader);
@@ -177,6 +178,23 @@ export function RequestBuilder() {
           )}
 
           <VariablePicker columns={csv.columns} onInsert={insertToken} />
+
+          {/* Response value extraction — a fixed dot-path, NOT a {{token}} field,
+              so it is intentionally not registered for VariablePicker inserts. */}
+          <div className="field">
+            <label className="field__label" htmlFor="extract-path">
+              {copy.build.extract.label}
+            </label>
+            <input
+              id="extract-path"
+              type="text"
+              className="method-url__url"
+              placeholder={copy.build.extract.placeholder}
+              value={config.extractPath}
+              onChange={(e) => setExtractPath(e.target.value)}
+            />
+            <p className="field__hint">{copy.build.extract.hint}</p>
+          </div>
         </fieldset>
 
         <RequestPreview />
