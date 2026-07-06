@@ -2,9 +2,11 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // https://vite.dev/config/
-// GitHub Pages serves this project at /queuepilot/, so the production build
-// needs that base path. Local dev/preview stay at root.
-export default defineConfig(({ command }) => ({
-  base: command === 'build' ? '/queuepilot/' : '/',
+// The base path is environment-driven so the same build works on both GitHub
+// Pages (served at /queuepilot/) and Vercel (served at root). The Pages deploy
+// workflow sets QP_BASE=/queuepilot/; when unset (Vercel, local dev/preview)
+// it defaults to root.
+export default defineConfig({
+  base: process.env.QP_BASE ?? '/',
   plugins: [react()],
-}));
+});

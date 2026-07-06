@@ -106,6 +106,43 @@ npm test
 - **CORS** — 브라우저 전용이므로, CORS를 허용하지 않는 API는 요청이 차단될 수 있습니다. 이 경우 샘플 실행에서 즉시 안내 패널로 표시됩니다.
 - 결과 표는 가상 스크롤 대신 페이지네이션(50행/페이지)을 사용합니다.
 - 유효성 검사 규칙, 429 자동 일시정지, 설정 저장, 클라우드 프록시는 다음 버전 후보입니다.
+- **도메인/오리진 변경 시** localStorage는 오리진 단위로 저장되므로, 배포 주소가 바뀌면
+  저장된 설정·안내 배너 상태가 "초기화된 것처럼" 보입니다. 오리진 간 이전(마이그레이션)은
+  불가능합니다.
+
+## 배포
+
+베이스 경로는 환경변수 `QP_BASE`로 결정됩니다. 설정하지 않으면 루트(`/`)가 기본값이며,
+GitHub Pages 배포 워크플로만 `QP_BASE=/queuepilot/`를 지정합니다. 덕분에 **같은 코드**가
+Pages(서브경로)와 Vercel(루트) 양쪽에서 동작합니다.
+
+### GitHub Pages (현재)
+
+`main`에 push하면 `.github/workflows/deploy.yml`가 빌드 후 Pages로 자동 배포합니다
+(Settings → Pages → Source = **GitHub Actions**). 워크플로의 빌드 단계가 `QP_BASE`를
+지정하므로 자산 경로는 `/queuepilot/assets/...`가 됩니다.
+
+### Vercel
+
+`vercel.json`은 필요 없습니다(단일 페이지, 클라이언트 라우팅 없음). Vercel 대시보드에서:
+
+- Framework Preset: **Vite**
+- Build Command: `npm run build`
+- Output Directory: `dist`
+- 환경변수: 없음 — `QP_BASE`를 설정하지 않으면 루트(`/`)로 배포됩니다.
+
+커스텀 도메인은 Vercel 프로젝트의 **Settings → Domains**에서 연결합니다.
+
+### 로컬에서 검증
+
+```bash
+# 루트 배포(Vercel와 동일) — 자산 경로가 /assets/... 인지 확인
+npm run build && npm run preview
+
+# Pages 배포 시뮬레이션(PowerShell) — dist/index.html 자산 경로가
+# /queuepilot/assets/... 로 시작하는지 확인
+$env:QP_BASE='/queuepilot/'; npm run build
+```
 
 ## 라이선스
 

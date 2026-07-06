@@ -39,7 +39,7 @@ It is designed to be executed **one phase at a time** by a coding agent (Opus).
 - [x] V2-P5 — Response value extraction (`qp_extracted`) — 2026-07-06
 - [x] V2-P6 — Demo mode ("try with sample data") — 2026-07-06
 - [x] V2-P7 — English UI toggle (**requires P2 done first**) — 2026-07-06
-- [ ] V2-P8 — Vercel migration prep (run when actually migrating)
+- [x] V2-P8 — Vercel migration prep (run when actually migrating) — 2026-07-06
 
 Dependency notes: P2 must be done before P7 (P7 relies on `errorKind`).
 P3/P5/P6 interactions are already handled inside each phase's instructions.

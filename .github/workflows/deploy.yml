@@ -27,6 +27,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+        # GitHub Pages serves at /queuepilot/; Vercel (no QP_BASE) serves at root.
+        env:
+          QP_BASE: /queuepilot/
       # Enables Pages (source = GitHub Actions) on first run if permitted.
       - uses: actions/configure-pages@v5
         with:
