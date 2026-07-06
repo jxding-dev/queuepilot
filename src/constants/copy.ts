@@ -19,6 +19,13 @@ export const copy = {
     dismiss: '확인',
   },
 
+  demo: {
+    startButton: '샘플 데이터로 체험하기',
+    startSubtext: '가짜 데이터와 가짜 API로 전체 흐름을 안전하게 둘러봅니다.',
+    banner: '데모 모드 — 실제 네트워크 요청이 전송되지 않습니다.',
+    exit: '데모 종료',
+  },
+
   upload: {
     title: 'CSV 파일 업로드',
     dropAriaLabel: 'CSV 파일 업로드',

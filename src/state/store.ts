@@ -11,6 +11,7 @@ import { unresolvedTokens } from '../engine/templating';
 import { runQueue, createRunControl, makeExecuteRow, type RunHandle } from '../engine/queueRunner';
 import { PRESETS, DEFAULT_PRESET, type PresetId } from '../lib/presets';
 import { loadConfig, saveConfig, clearConfig } from '../lib/configStorage';
+import { DEMO_CSV, DEMO_CONFIG, makeDemoExecuteRow } from '../lib/demo';
 
 const SAMPLE_SIZE = 5;
 const FLUSH_MS = 100;
@@ -101,12 +102,14 @@ interface AppState {
   runBaselineDone: number; // rows already completed at run start (kept sample successes)
   autoPaused429: boolean; // set when a run auto-pauses after repeated 429s
   skipSampledSuccess: boolean; // skip sample-successful rows on the full run
+  demoMode: boolean; // demo runs use a simulator instead of fetch
 
   // ui slice
   step: number;
 
   // actions
   parseFile: (file: File) => Promise<void>;
+  startDemo: () => void;
   clearCsv: () => void;
   setStep: (step: number) => void;
   setMethod: (method: HttpMethod) => void;
@@ -135,6 +138,10 @@ let flushTimer: ReturnType<typeof setInterval> | null = null;
 let resultBuffer: RowResult[] = [];
 let activeCount = 0; // in-flight requests, for the pausing -> paused transition
 let saveTimer: ReturnType<typeof setTimeout> | null = null; // debounced config persistence
+// The demo simulator, created once per demo session so its "failed once → then
+// succeeds" memory survives across runs (sample → full → retry). Null when not
+// in demo mode.
+let demoExecute: ((rowIndex: number, signal: AbortSignal) => Promise<RowResult>) | null = null;
 
 export const useStore = create<AppState>((set, get) => ({
   csv: null,
@@ -147,6 +154,7 @@ export const useStore = create<AppState>((set, get) => ({
   runBaselineDone: 0,
   autoPaused429: false,
   skipSampledSuccess: true,
+  demoMode: false,
   step: 0,
 
   parseFile: async (file) => {
@@ -164,7 +172,28 @@ export const useStore = create<AppState>((set, get) => ({
     }
   },
 
-  clearCsv: () => set({ csv: null, parseError: null, step: 0 }),
+  startDemo: () => {
+    // Fresh simulator per demo session (resets its retry-success memory).
+    demoExecute = makeDemoExecuteRow(DEMO_CSV.rows);
+    set((s) => ({
+      csv: DEMO_CSV,
+      config: DEMO_CONFIG,
+      demoMode: true,
+      parseError: null,
+      run: { ...INITIAL_RUN, preset: s.run.preset },
+      runStartedAt: null,
+      runBaselineDone: 0,
+      autoPaused429: false,
+      step: 1,
+    }));
+  },
+
+  clearCsv: () => {
+    // Leaving the demo drops the simulator; the saved (real) config is untouched
+    // because saves are skipped while demoMode is on.
+    demoExecute = null;
+    set({ csv: null, parseError: null, step: 0, demoMode: false });
+  },
 
   setStep: (step) => {
     const state = get();
@@ -280,10 +309,13 @@ useStore.subscribe((state) => {
   if (state.config === prevConfig && state.run.preset === prevPreset) return;
   prevConfig = state.config;
   prevPreset = state.run.preset;
+  // Never persist the demo's throwaway config over the user's saved template.
+  if (state.demoMode) return;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     saveTimer = null;
     const s = useStore.getState();
+    if (s.demoMode) return; // still in demo when the debounce fired
     saveConfig(s.config, s.run.preset, s.saveAuthHeaders);
   }, 300);
 });
@@ -383,7 +415,10 @@ async function beginRun(
   flushTimer = setInterval(flush, FLUSH_MS);
 
   const { concurrency, delayMs } = PRESETS[state.run.preset];
-  const rawExecute = makeExecuteRow(state.config, state.csv.rows);
+  const rawExecute =
+    state.demoMode && demoExecute
+      ? demoExecute
+      : makeExecuteRow(state.config, state.csv.rows);
 
   // Track in-flight requests so "Pausing…" can flip to "Paused" once the last
   // active request settles (in-flight requests finish naturally on pause).

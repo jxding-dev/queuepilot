@@ -62,16 +62,36 @@ function DocumentTitle() {
   return null;
 }
 
+// Persistent banner while the demo is active, so the visitor always knows no real
+// requests are being sent and can exit back to the empty upload screen.
+function DemoBanner() {
+  const demoMode = useStore((s) => s.demoMode);
+  const clearCsv = useStore((s) => s.clearCsv);
+  if (!demoMode) return null;
+  return (
+    <WarningBanner tone="info" onDismiss={clearCsv} dismissLabel={copy.demo.exit}>
+      {copy.demo.banner}
+    </WarningBanner>
+  );
+}
+
 function UploadStep() {
   const csv = useStore((s) => s.csv);
   const clearCsv = useStore((s) => s.clearCsv);
   const setStep = useStore((s) => s.setStep);
+  const startDemo = useStore((s) => s.startDemo);
 
   if (!csv) {
     return (
       <section className="panel">
         <h2 className="panel__title">{copy.upload.title}</h2>
         <CsvDropzone />
+        <div className="demo-cta">
+          <button type="button" className="btn btn--ghost" onClick={startDemo}>
+            {copy.demo.startButton}
+          </button>
+          <p className="demo-cta__subtext">{copy.demo.startSubtext}</p>
+        </div>
       </section>
     );
   }
@@ -130,6 +150,7 @@ export default function App() {
     <div className="app">
       <DocumentTitle />
       <PrivacyBanner />
+      <DemoBanner />
       <header className="app__header">
         <div className="app__brand">
           <span className="app__logo" aria-hidden="true">
