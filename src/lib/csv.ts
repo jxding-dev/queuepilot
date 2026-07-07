@@ -161,6 +161,30 @@ export function buildResultCsv(
   return Papa.unparse({ fields, data });
 }
 
+// A cell that is only a number (incl. sign/decimal/exponent) is safe to leave
+// as-is even though it may start with + or -.
+const PLAIN_NUMBER = /^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$/;
+
+/**
+ * Defuse CSV/Excel formula injection (OWASP). qp_error / qp_response /
+ * qp_extracted carry API-controlled text; a value starting with = @ + - or a
+ * tab/CR would execute as a formula when the export is opened in Excel or
+ * Sheets. Prefix such cells with a literal apostrophe. Plain numbers (e.g. an
+ * extracted -5) are left untouched. Original CSV columns are the user's own
+ * data and are exported verbatim.
+ */
+function sanitizeCsvCell(value: string): string {
+  if (value === '') return value;
+  const first = value[0];
+  if (first === '=' || first === '@' || first === '\t' || first === '\r') {
+    return "'" + value;
+  }
+  if ((first === '+' || first === '-') && !PLAIN_NUMBER.test(value)) {
+    return "'" + value;
+  }
+  return value;
+}
+
 /** The qp_* cell values for one row (undefined result = never run). */
 function resultCells(result: RowResult | undefined): string[] {
   if (!result) return ['pending', '', '', '', '', ''];
@@ -171,7 +195,7 @@ function resultCells(result: RowResult | undefined): string[] {
     result.responseSnippet ?? '',
     result.extractedValue ?? '',
     result.attempts > 0 ? String(result.attempts) : '',
-  ];
+  ].map(sanitizeCsvCell);
 }
 
 /** Download a result CSV with a UTF-8 BOM so Excel opens it correctly. */

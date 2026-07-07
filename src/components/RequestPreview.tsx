@@ -6,7 +6,7 @@
 
 import { useMemo } from 'react';
 import { useStore, useCopy, methodHasBody, configUnresolvedTokens } from '../state/store';
-import { substitute } from '../engine/templating';
+import { substitute, substituteUrl } from '../engine/templating';
 
 export function RequestPreview() {
   const copy = useCopy();
@@ -24,7 +24,7 @@ export function RequestPreview() {
 
   const rendered = useMemo(() => {
     if (!row) return null;
-    const url = substitute(config.urlTemplate, row);
+    const url = substituteUrl(config.urlTemplate, row);
     const headers = config.headers
       .filter((h) => h.key.trim() !== '')
       .map((h) => ({ key: substitute(h.key, row), value: substitute(h.value, row) }));

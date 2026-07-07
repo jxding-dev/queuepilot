@@ -95,4 +95,46 @@ describe('buildResultCsv', () => {
     expect(rows[0].id).toBe('2');
     expect(rows[0].qp_status).toBe('failed');
   });
+
+  describe('formula-injection defusing', () => {
+    function exportOne(result: Partial<RowResult>) {
+      const one: CsvData = { fileName: 'x.csv', columns: ['id'], rows: [{ id: '1' }], warnings: [] };
+      const res = new Map<number, RowResult>([
+        [0, { rowIndex: 0, status: 'success', attempts: 1, ...result }],
+      ]);
+      return parse(buildResultCsv(one, res))[0];
+    }
+
+    it("prefixes ' to a response starting with =", () => {
+      const row = exportOne({ responseSnippet: '=HYPERLINK("http://evil")' });
+      expect(row.qp_response).toBe("'=HYPERLINK(\"http://evil\")");
+    });
+
+    it("prefixes ' to extracted/error values starting with @ or +", () => {
+      const row = exportOne({ extractedValue: '@SUM(A1)', errorMessage: '+cmd|calc' });
+      expect(row.qp_extracted).toBe("'@SUM(A1)");
+      expect(row.qp_error).toBe("'+cmd|calc");
+    });
+
+    it('leaves plain negative numbers untouched', () => {
+      const row = exportOne({ extractedValue: '-5' });
+      expect(row.qp_extracted).toBe('-5');
+    });
+
+    it("prefixes ' to a non-numeric value starting with -", () => {
+      const row = exportOne({ extractedValue: '-2+3+cmd|calc' });
+      expect(row.qp_extracted).toBe("'-2+3+cmd|calc");
+    });
+
+    it('exports original columns verbatim (round-trip preserved)', () => {
+      const data: CsvData = {
+        fileName: 'x.csv',
+        columns: ['note'],
+        rows: [{ note: '=A1' }],
+        warnings: [],
+      };
+      const rows = parse(buildResultCsv(data, new Map()));
+      expect(rows[0].note).toBe('=A1');
+    });
+  });
 });

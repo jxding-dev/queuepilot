@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { extractTokens, substitute, unresolvedTokens } from './templating';
+import { extractTokens, substitute, substituteUrl, unresolvedTokens } from './templating';
 
 describe('extractTokens', () => {
   it('finds multiple distinct tokens in order', () => {
@@ -61,6 +61,27 @@ describe('substitute', () => {
       const body = substitute('{{note}}', { note: 'a"b' });
       expect(body).toBe('a"b');
     });
+  });
+});
+
+describe('substituteUrl', () => {
+  it('percent-encodes values so &, #, + and spaces cannot break the URL', () => {
+    const row = { email: 'a+b@x.com', q: 'a b&c=1#frag' };
+    expect(substituteUrl('https://api.x.com/u?e={{email}}&q={{q}}', row)).toBe(
+      'https://api.x.com/u?e=a%2Bb%40x.com&q=a%20b%26c%3D1%23frag',
+    );
+  });
+
+  it('inserts the value raw when the whole template is a single token', () => {
+    const row = { url: 'https://api.x.com/users?page=2' };
+    expect(substituteUrl('{{url}}', row)).toBe('https://api.x.com/users?page=2');
+    expect(substituteUrl('  {{ url }} ', row)).toBe('  https://api.x.com/users?page=2 ');
+  });
+
+  it('encodes path segments in a mixed template', () => {
+    expect(substituteUrl('https://x.com/users/{{id}}', { id: '1/2?x' })).toBe(
+      'https://x.com/users/1%2F2%3Fx',
+    );
   });
 });
 

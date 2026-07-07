@@ -41,6 +41,12 @@ export interface SubstituteOptions {
    * escaping a plain number is a no-op, so the value is inserted verbatim.
    */
   jsonEscape?: boolean;
+  /**
+   * When true, each substituted value is percent-encoded (encodeURIComponent)
+   * so a cell containing space, &, #, + or ? can't break the URL or inject
+   * extra query parameters.
+   */
+  urlEncode?: boolean;
 }
 
 /** Replace every {{token}} in `text` with the matching cell value from `row`. */
@@ -52,8 +58,26 @@ export function substitute(
   return text.replace(tokenRegex(), (_full, rawToken: string) => {
     const token = rawToken.trim();
     const value = row[token] ?? ''; // unknown/empty column -> empty string
-    return options.jsonEscape ? escapeForJsonString(value) : value;
+    if (options.jsonEscape) return escapeForJsonString(value);
+    if (options.urlEncode) return encodeURIComponent(value);
+    return value;
   });
+}
+
+// A template that is exactly one token, e.g. "{{url}}" (whitespace allowed).
+const WHOLE_TOKEN_PATTERN = new RegExp(`^\\s*${TOKEN_PATTERN}\\s*$`);
+
+/**
+ * Substitute a URL template. Values are percent-encoded so a cell containing
+ * space, &, # or + can't break the URL or inject query parameters — EXCEPT
+ * when the whole template is a single token (e.g. "{{url}}"): that means "the
+ * cell IS the URL", and encoding it would destroy the scheme and slashes.
+ */
+export function substituteUrl(template: string, row: CsvRow): string {
+  if (WHOLE_TOKEN_PATTERN.test(template)) {
+    return substitute(template, row);
+  }
+  return substitute(template, row, { urlEncode: true });
 }
 
 /** Tokens used in `template` that do not match any CSV column (case-sensitive). */

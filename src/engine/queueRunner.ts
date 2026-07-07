@@ -9,7 +9,7 @@
 //      to a RowResult (never throws).
 
 import type { CsvRow, RequestTemplate, RowResult } from '../types';
-import { substitute } from './templating';
+import { substitute, substituteUrl } from './templating';
 import { classifyHttpStatus, classifyThrownError, type ErrorStrings } from './errors';
 import { extractByPath } from './extract';
 
@@ -149,7 +149,7 @@ export function makeExecuteRow(config: RequestTemplate, rows: CsvRow[], errorStr
     runSignal: AbortSignal,
   ): Promise<RowResult> {
     const row = rows[rowIndex];
-    const url = substitute(config.urlTemplate, row);
+    const url = substituteUrl(config.urlTemplate, row);
 
     const headers = new Headers();
     for (const header of config.headers) {
